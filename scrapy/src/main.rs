@@ -1,18 +1,15 @@
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use log::LevelFilter;
 use reqwest::Client;
-use scraper::{error::SelectorErrorKind, Html, Selector};
-use scrapy::{FromHTML, Spider};
+use scraper::{Html, Selector};
+use scrapy::{Crawler, FromHTML, Spider};
 
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
     #[error("Reqwest Error: {0}")]
     Reqwest(#[from] reqwest::Error),
-
-    #[error("Selector Error: {0}")]
-    Selector(#[from] SelectorErrorKind<'static>),
 
     #[error("Validation Error: {0}")]
     Validation(String),
@@ -24,6 +21,20 @@ pub struct QuotesItem {
     pub author: Option<String>,
 }
 
+impl QuotesItem {
+    fn validate(&self) -> Result<(), AppError> {
+        if self.text.is_none() {
+            return Err(AppError::Validation("Missing text".to_string()));
+        }
+
+        if self.author.is_none() {
+            return Err(AppError::Validation("Missing author".to_string()));
+        }
+
+        Ok(())
+    }
+}
+
 impl FromHTML for QuotesItem {
     type Error = AppError;
     type Output = Vec<Self>;
@@ -33,9 +44,9 @@ impl FromHTML for QuotesItem {
         Self: Sized,
     {
         let document = Html::parse_document(html);
-        let quote_selector = Selector::parse(".quote")?;
-        let author_selector = Selector::parse("small.author")?;
-        let text_selector = Selector::parse("span.text")?;
+        let quote_selector = Selector::parse(".quote").unwrap();
+        let author_selector = Selector::parse("small.author").unwrap();
+        let text_selector = Selector::parse("span.text").unwrap();
 
         let mut quotes = Vec::new();
 
@@ -95,7 +106,9 @@ impl Spider for QuotesSpider {
         Ok(QuotesItem::from_html(&http_res)?)
     }
 
-    async fn process(&self, _: Self::Item) -> Result<(), AppError> {
+    async fn process(&self, item: Self::Item) -> Result<(), AppError> {
+        println!("processing: {:#?}", item);
+        item.validate()?;
         Ok(())
     }
 }
@@ -103,16 +116,10 @@ impl Spider for QuotesSpider {
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     setup_logging();
+    let crawler = Crawler::new();
 
-    let url = "https://quotes.toscrape.com/page/1/";
-    let spider = QuotesSpider::new();
-    let quotes = spider.scrape(url).await?;
-
-    println!("{quotes:#?}");
-
-    for quote in &quotes {
-        validate_quote(quote)?;
-    }
+    let spider = Arc::new(QuotesSpider::new());
+    crawler.crawl(spider).await;
 
     Ok(())
 }
@@ -121,16 +128,4 @@ fn setup_logging() {
     env_logger::Builder::new()
         .filter_level(LevelFilter::Info)
         .init();
-}
-
-fn validate_quote(quote: &QuotesItem) -> Result<(), AppError> {
-    if quote.text.is_none() {
-        return Err(AppError::Validation("Missing text".to_string()));
-    }
-
-    if quote.author.is_none() {
-        return Err(AppError::Validation("Missing author".to_string()));
-    }
-
-    Ok(())
 }
