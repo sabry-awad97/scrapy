@@ -1,7 +1,2 @@
-pub trait FromHTML {
-    type Error;
-    type Output;
-    fn from_html(html: &str) -> Result<Self::Output, Self::Error>
-    where
-        Self: Sized;
-}
+mod from_html;
+pub use from_html::FromHTML;
