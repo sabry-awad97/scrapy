@@ -100,10 +100,11 @@ impl Spider for QuotesSpider {
         ]
     }
 
-    async fn scrape(&self, url: &str) -> Result<Vec<Self::Item>, Self::Error> {
+    async fn scrape(&self, url: &str) -> Result<(Vec<Self::Item>, Vec<String>), AppError> {
         log::info!("visiting: {}", url);
         let http_res = self.http_client.get(url).send().await?.text().await?;
-        Ok(QuotesItem::from_html(&http_res)?)
+        let next_pages_link = vec![];
+        Ok((Self::Item::from_html(&http_res)?, next_pages_link))
     }
 
     async fn process(&self, item: Self::Item) -> Result<(), AppError> {
@@ -116,7 +117,7 @@ impl Spider for QuotesSpider {
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     setup_logging();
-    let crawler = Crawler::new();
+    let crawler = Crawler::new(Duration::from_millis(200), 2, 500);
 
     let spider = Arc::new(QuotesSpider::new());
     crawler.crawl(spider).await;
