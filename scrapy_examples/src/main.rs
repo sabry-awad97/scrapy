@@ -1,5 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
+use clap::{Parser, Subcommand};
 use error::AppError;
 use log::LevelFilter;
 use scrapy::Crawler;
@@ -8,20 +9,57 @@ use spiders::QuotesSpider;
 mod error;
 mod spiders;
 
-fn setup_logging() {
-    env_logger::Builder::new()
-        .filter_level(LevelFilter::Info)
-        .init();
+#[derive(Subcommand)]
+pub enum Command {
+    /// List all spiders
+    Spiders,
+
+    /// Run a spider
+    Run {
+        /// The spider to run
+        #[arg(short, long)]
+        spider: String,
+    },
+}
+
+#[derive(Parser)]
+#[command(version, about)]
+#[command(propagate_version = true)]
+struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Command>,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    setup_logging();
-    
-    let crawler = Crawler::new(Duration::from_millis(200), 2, 500);
+    env_logger::Builder::new()
+        .filter_level(LevelFilter::Info)
+        .init();
 
-    let spider = Arc::new(QuotesSpider::new());
-    crawler.crawl(spider).await;
+    let cli = Cli::parse();
+    if let Some(command) = cli.command {
+        match command {
+            Command::Spiders => {
+                println!("Listing all spiders...");
+                let spider_names = vec!["quotes"];
+                for name in spider_names {
+                    println!("{}", name);
+                }
+            }
+            Command::Run { spider } => {
+                let spider_name = spider.as_str();
+                let crawler = Crawler::new(Duration::from_millis(200), 2, 500);
+
+                match spider_name {
+                    "quotes" => {
+                        let spider = Arc::new(QuotesSpider::new());
+                        crawler.crawl(spider).await;
+                    }
+                    _ => return Err(AppError::InvalidSpider(spider_name.to_string())),
+                };
+            }
+        }
+    }
 
     Ok(())
 }

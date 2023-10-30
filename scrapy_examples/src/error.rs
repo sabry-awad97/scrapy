@@ -5,4 +5,7 @@ pub enum AppError {
 
     #[error("Validation Error: {0}")]
     Validation(String),
+
+    #[error("Spider is not valid: {0}")]
+    InvalidSpider(String),
 }

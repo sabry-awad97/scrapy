@@ -13,18 +13,6 @@ pub struct QuotesSpider {
     http_client: Client,
 }
 
-impl QuotesSpider {
-    pub fn new() -> Self {
-        let http_timeout = Duration::from_secs(6);
-        let http_client = Client::builder()
-            .timeout(http_timeout)
-            .build()
-            .expect("spiders/quotes: Building HTTP client");
-
-        Self { http_client }
-    }
-}
-
 #[async_trait]
 impl Spider for QuotesSpider {
     type Item = QuotesItem;
@@ -52,5 +40,17 @@ impl Spider for QuotesSpider {
         println!("processing: {:#?}", item);
         item.validate()?;
         Ok(())
+    }
+}
+
+impl QuotesSpider {
+    pub fn new() -> Self {
+        let http_timeout = Duration::from_secs(6);
+        let http_client = Client::builder()
+            .timeout(http_timeout)
+            .build()
+            .expect("spiders/quotes: Building HTTP client");
+
+        Self { http_client }
     }
 }
