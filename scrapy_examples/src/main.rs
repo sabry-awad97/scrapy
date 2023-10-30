@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 use error::AppError;
 use log::LevelFilter;
 use scrapy::Crawler;
-use spiders::QuotesSpider;
+use spiders::{BooksSpider, QuotesSpider};
 
 mod error;
 mod spiders;
@@ -41,7 +41,7 @@ async fn main() -> Result<(), AppError> {
         match command {
             Command::Spiders => {
                 println!("Listing all spiders...");
-                let spider_names = vec!["quotes"];
+                let spider_names = vec!["quotes", "books"];
                 for name in spider_names {
                     println!("{}", name);
                 }
@@ -54,6 +54,12 @@ async fn main() -> Result<(), AppError> {
                     "quotes" => {
                         let spider = QuotesSpider::new();
                         crawler.crawl(spider).await;
+                    }
+                    "books" => {
+                        let headless = true;
+                        let spider = BooksSpider::new(headless).await?;
+                        crawler.crawl(spider.clone()).await;
+                        spider.close().await?
                     }
                     _ => return Err(AppError::InvalidSpider(spider_name.to_string())),
                 };
