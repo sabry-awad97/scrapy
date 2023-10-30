@@ -1,2 +1,2 @@
 mod traits;
-pub use traits::FromHTML;
+pub use traits::{FromHTML, Spider};

@@ -1,7 +1,10 @@
+use std::time::Duration;
+
+use async_trait::async_trait;
 use log::LevelFilter;
 use reqwest::Client;
 use scraper::{error::SelectorErrorKind, Html, Selector};
-use scrapy::FromHTML;
+use scrapy::{FromHTML, Spider};
 
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
@@ -15,7 +18,7 @@ pub enum AppError {
     Validation(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QuotesItem {
     pub text: Option<String>,
     pub author: Option<String>,
@@ -54,16 +57,56 @@ impl FromHTML for QuotesItem {
     }
 }
 
+pub struct QuotesSpider {
+    http_client: Client,
+}
+
+impl QuotesSpider {
+    fn new() -> Self {
+        let http_timeout = Duration::from_secs(6);
+        let http_client = Client::builder()
+            .timeout(http_timeout)
+            .build()
+            .expect("spiders/quotes: Building HTTP client");
+
+        Self { http_client }
+    }
+}
+
+#[async_trait]
+impl Spider for QuotesSpider {
+    type Item = QuotesItem;
+    type Error = AppError;
+
+    fn name(&self) -> String {
+        String::from("quotes")
+    }
+
+    fn start_urls(&self) -> Vec<String> {
+        vec![
+            "https://quotes.toscrape.com/page/1/".to_string(),
+            "https://quotes.toscrape.com/page/2/".to_string(),
+        ]
+    }
+
+    async fn scrape(&self, url: &str) -> Result<Vec<Self::Item>, Self::Error> {
+        log::info!("visiting: {}", url);
+        let http_res = self.http_client.get(url).send().await?.text().await?;
+        Ok(QuotesItem::from_html(&http_res)?)
+    }
+
+    async fn process(&self, _: Self::Item) -> Result<(), AppError> {
+        Ok(())
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     setup_logging();
 
     let url = "https://quotes.toscrape.com/page/1/";
-    let http_client = Client::builder().build().expect("Building HTTP client");
-
-    log::info!("visiting: {}", url);
-    let html = http_client.get(url).send().await?.text().await?;
-    let quotes = QuotesItem::from_html(&html)?;
+    let spider = QuotesSpider::new();
+    let quotes = spider.scrape(url).await?;
 
     println!("{quotes:#?}");
 
