@@ -33,7 +33,7 @@ pub struct Crawler {
 }
 
 impl Crawler {
-    pub fn new(
+    pub(crate) fn new(
         delay: Duration,
         crawling_concurrency: usize,
         processing_concurrency: usize,
