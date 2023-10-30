@@ -1463,8 +1463,10 @@ name = "scrapy_examples"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "clap",
  "env_logger",
+ "futures",
  "log",
  "reqwest",
  "scraper",
