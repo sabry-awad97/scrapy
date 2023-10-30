@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::time::Duration;
 
 use clap::{Parser, Subcommand};
 use error::AppError;
@@ -52,7 +52,7 @@ async fn main() -> Result<(), AppError> {
 
                 match spider_name {
                     "quotes" => {
-                        let spider = Arc::new(QuotesSpider::new());
+                        let spider = QuotesSpider::new();
                         crawler.crawl(spider).await;
                     }
                     _ => return Err(AppError::InvalidSpider(spider_name.to_string())),

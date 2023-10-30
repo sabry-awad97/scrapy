@@ -42,11 +42,13 @@ impl Crawler {
         }
     }
 
-    pub async fn crawl<T, E>(&self, spider: Arc<dyn Spider<Item = T, Error = E>>)
+    pub async fn crawl<T, E, S>(&self, spider: S)
     where
         T: Send + 'static,
         E: Display + Send + 'static,
+        S: Spider<Item = T, Error = E> + 'static,
     {
+        let spider_arc = Arc::new(spider);
         let mut visited_urls = HashSet::<String>::new();
         let crawling_queue_capacity = self.crawling_concurrency * 400;
         let processing_queue_capacity = self.processing_concurrency * 10;
@@ -55,15 +57,15 @@ impl Crawler {
         let (items_tx, items_rx) = mpsc::channel(processing_queue_capacity);
         let (new_urls_tx, mut new_urls_rx) = mpsc::channel(crawling_queue_capacity);
 
-        for url in spider.start_urls() {
+        for url in spider_arc.start_urls() {
             visited_urls.insert(url.clone());
             let _ = urls_to_visit_tx.send(url).await;
         }
 
-        self.launch_processors(spider.clone(), items_rx);
+        self.launch_processors(spider_arc.clone(), items_rx);
 
         self.launch_scrapers(
-            spider.clone(),
+            spider_arc.clone(),
             urls_to_visit_rx,
             new_urls_tx.clone(),
             items_tx,
