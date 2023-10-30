@@ -9,6 +9,9 @@ enum AppError {
 
     #[error("Selector Error: {0}")]
     Selector(#[from] SelectorErrorKind<'static>),
+
+    #[error("Validation Error: {0}")]
+    Validation(String),
 }
 
 #[derive(Debug)]
@@ -50,6 +53,10 @@ async fn main() -> Result<(), AppError> {
 
     println!("{quotes:#?}");
 
+    for quote in &quotes {
+        validate_quote(quote)?;
+    }
+
     Ok(())
 }
 
@@ -57,4 +64,16 @@ fn setup_logging() {
     env_logger::Builder::new()
         .filter_level(LevelFilter::Info)
         .init();
+}
+
+fn validate_quote(quote: &QuotesItem) -> Result<(), AppError> {
+    if quote.text.is_none() {
+        return Err(AppError::Validation("Missing text".to_string()));
+    }
+
+    if quote.author.is_none() {
+        return Err(AppError::Validation("Missing author".to_string()));
+    }
+
+    Ok(())
 }
