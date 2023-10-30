@@ -3,7 +3,7 @@ use std::time::Duration;
 use clap::{Parser, Subcommand};
 use error::AppError;
 use log::LevelFilter;
-use scrapy::Crawler;
+use scrapy::CrawlerBuilder;
 use spiders::{BooksSpider, HackerNewsSpider, QuotesSpider};
 
 mod error;
@@ -48,7 +48,11 @@ async fn main() -> Result<(), AppError> {
             }
             Command::Run { spider } => {
                 let spider_name = spider.as_str();
-                let crawler = Crawler::new(Duration::from_millis(200), 2, 500);
+                let crawler = CrawlerBuilder::new()
+                    .delay(Duration::from_millis(200))
+                    .crawling_concurrency(2)
+                    .processing_concurrency(500)
+                    .build();
 
                 match spider_name {
                     "quotes" => {
