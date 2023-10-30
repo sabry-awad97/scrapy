@@ -1,3 +1,4 @@
+use log::LevelFilter;
 use reqwest::Client;
 use scraper::error::SelectorErrorKind;
 use scraper::{Html, Selector};
@@ -18,6 +19,8 @@ pub struct QuotesItem {
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
+    setup_logging();
+
     let url = "https://quotes.toscrape.com/page/1/";
     let http_client = Client::builder().build().expect("Building HTTP client");
 
@@ -48,4 +51,10 @@ async fn main() -> Result<(), AppError> {
     println!("{quotes:#?}");
 
     Ok(())
+}
+
+fn setup_logging() {
+    env_logger::Builder::new()
+        .filter_level(LevelFilter::Info)
+        .init();
 }
