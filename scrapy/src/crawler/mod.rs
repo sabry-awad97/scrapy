@@ -17,15 +17,36 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use crate::Spider;
 
+/// A concurrent web crawler capable of processing and scraping content in parallel.
 pub struct Crawler {
+    /// A `Duration` indicating the delay between crawling requests.
     delay: Duration,
+
+    /// A `usize` indicating the maximum number of concurrent crawling tasks.
     crawling_concurrency: usize,
+
+    /// A `usize` indicating the maximum number of concurrent processing tasks.
     processing_concurrency: usize,
+
+    /// An `Arc<Barrier>` providing a synchronization point for tasks.
     barrier: Arc<Barrier>,
+
+    /// An `Arc<AtomicUsize>` for tracking the number of active spider tasks.
     active_spiders: Arc<AtomicUsize>,
 }
 
 impl Crawler {
+    /// Constructs a new `Crawler` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `delay` - The duration between consecutive crawling requests.
+    /// * `crawling_concurrency` - The maximum number of concurrent crawling tasks.
+    /// * `processing_concurrency` - The maximum number of concurrent processing tasks.
+    ///
+    /// # Returns
+    ///
+    /// A new `Crawler` instance with the specified configurations.
     pub fn new(
         delay: Duration,
         crawling_concurrency: usize,
@@ -42,6 +63,16 @@ impl Crawler {
         }
     }
 
+    /// Initiates the crawling process using the provided `Spider`.
+    ///
+    /// # Arguments
+    ///
+    /// * `spider` - The `Spider` implementation responsible for crawling, processing, and scraping.
+    ///
+    /// # Remarks
+    ///
+    /// This method launches concurrent tasks for crawling, processing, and scraping operations.
+    ///
     pub async fn crawl<T, E, S>(&self, spider: S)
     where
         T: Send + 'static,
@@ -99,6 +130,17 @@ impl Crawler {
         self.barrier.wait().await;
     }
 
+    /// Launches processors to handle incoming items concurrently.
+    ///
+    /// # Arguments
+    ///
+    /// * `spider` - The `Spider` implementation responsible for processing items.
+    /// * `items` - The receiver channel for incoming items.
+    ///
+    /// # Remarks
+    ///
+    /// This method creates a set of asynchronous tasks to process items concurrently.
+    ///
     fn launch_processors<T, E>(
         &self,
         spider: Arc<dyn Spider<Item = T, Error = E>>,
@@ -120,6 +162,19 @@ impl Crawler {
         });
     }
 
+    /// Launches scrapers to retrieve content from URLs concurrently.
+    ///
+    /// # Arguments
+    ///
+    /// * `spider` - The `Spider` implementation responsible for scraping URLs.
+    /// * `urls_to_visit` - The receiver channel for URLs to be visited.
+    /// * `new_urls_tx` - The sender channel for new URLs and corresponding scraped content.
+    /// * `items_tx` - The sender channel for processed items.
+    ///
+    /// # Remarks
+    ///
+    /// This method creates a set of asynchronous tasks to scrape URLs concurrently.
+    ///
     fn launch_scrapers<T, E>(
         &self,
         spider: Arc<dyn Spider<Item = T, Error = E>>,
