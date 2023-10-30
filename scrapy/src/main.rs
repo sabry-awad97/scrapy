@@ -1,9 +1,10 @@
 use log::LevelFilter;
 use reqwest::Client;
-use scraper::error::SelectorErrorKind;
-use scraper::{Html, Selector};
+use scraper::{error::SelectorErrorKind, Html, Selector};
+use scrapy::FromHTML;
+
 #[derive(thiserror::Error, Debug)]
-enum AppError {
+pub enum AppError {
     #[error("Reqwest Error: {0}")]
     Reqwest(#[from] reqwest::Error),
 
@@ -20,6 +21,39 @@ pub struct QuotesItem {
     pub author: Option<String>,
 }
 
+impl FromHTML for QuotesItem {
+    type Error = AppError;
+    type Output = Vec<Self>;
+
+    fn from_html(html: &str) -> Result<Self::Output, Self::Error>
+    where
+        Self: Sized,
+    {
+        let document = Html::parse_document(html);
+        let quote_selector = Selector::parse(".quote")?;
+        let author_selector = Selector::parse("small.author")?;
+        let text_selector = Selector::parse("span.text")?;
+
+        let mut quotes = Vec::new();
+
+        for quote in document.select(&quote_selector) {
+            let text: Option<_> = quote
+                .select(&text_selector)
+                .next()
+                .and_then(|e| e.inner_html().parse().ok());
+
+            let author: Option<_> = quote
+                .select(&author_selector)
+                .next()
+                .and_then(|e| e.inner_html().parse().ok());
+
+            quotes.push(QuotesItem { text, author })
+        }
+
+        Ok(quotes)
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     setup_logging();
@@ -29,27 +63,7 @@ async fn main() -> Result<(), AppError> {
 
     log::info!("visiting: {}", url);
     let html = http_client.get(url).send().await?.text().await?;
-
-    let document = Html::parse_document(&html);
-    let quote_selector = Selector::parse(".quote")?;
-    let author_selector = Selector::parse("small.author")?;
-    let text_selector = Selector::parse("span.text")?;
-
-    let mut quotes = Vec::new();
-
-    for quote in document.select(&quote_selector) {
-        let text: Option<_> = quote
-            .select(&text_selector)
-            .next()
-            .and_then(|e| e.inner_html().parse().ok());
-
-        let author: Option<_> = quote
-            .select(&author_selector)
-            .next()
-            .and_then(|e| e.inner_html().parse().ok());
-
-        quotes.push(QuotesItem { text, author })
-    }
+    let quotes = QuotesItem::from_html(&html)?;
 
     println!("{quotes:#?}");
 
