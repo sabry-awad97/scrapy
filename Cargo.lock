@@ -1136,12 +1136,8 @@ name = "scrapy"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "env_logger",
  "futures",
  "log",
- "reqwest",
- "scraper",
- "thiserror",
  "tokio",
  "tokio-stream",
 ]
@@ -1149,6 +1145,16 @@ dependencies = [
 [[package]]
 name = "scrapy_examples"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "env_logger",
+ "log",
+ "reqwest",
+ "scraper",
+ "scrapy",
+ "thiserror",
+ "tokio",
+]
 
 [[package]]
 name = "sct"
