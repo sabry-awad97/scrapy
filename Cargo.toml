@@ -1,0 +1,7 @@
+[workspace]
+members = ["scrapy", "scrapy_examples"]
+default-members = ["scrapy"]
+resolver = "2"
+
+[build]
+rustc-wrapper = "scchache"
