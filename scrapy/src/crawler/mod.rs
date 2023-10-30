@@ -17,6 +17,9 @@ use crate::Spider;
 
 use self::{processor::Processor, scraper::Scraper};
 
+pub use crawler_builder::CrawlerBuilder;
+
+mod crawler_builder;
 mod processor;
 mod scraper;
 
