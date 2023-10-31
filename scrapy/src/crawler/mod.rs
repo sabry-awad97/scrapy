@@ -15,10 +15,11 @@ use tokio::{
 
 use crate::Spider;
 
-use self::{processor::Processor, scraper::Scraper};
+use self::{config::ScraperConfig, processor::Processor, scraper::Scraper};
 
 pub use crawler_builder::CrawlerBuilder;
 
+mod config;
 mod crawler_builder;
 mod processor;
 mod scraper;
@@ -26,10 +27,10 @@ mod scraper;
 pub struct Crawler {
     active_spiders: Arc<AtomicUsize>,
     barrier: Arc<Barrier>,
+    config: ScraperConfig,
     crawling_queue_capacity: usize,
     processing_queue_capacity: usize,
     processor: Processor,
-    scraper: Scraper,
 }
 
 impl Crawler {
@@ -40,15 +41,10 @@ impl Crawler {
     ) -> Self {
         let active_spiders = Arc::new(AtomicUsize::new(0));
         let barrier = Arc::new(Barrier::new(3));
+        let config = ScraperConfig::new(crawling_concurrency, delay);
         let crawling_queue_capacity = crawling_concurrency * 400;
         let processing_queue_capacity = processing_concurrency * 10;
         let processor = Processor::new(processing_concurrency, barrier.clone());
-        let scraper = Scraper::new(
-            active_spiders.clone(),
-            barrier.clone(),
-            crawling_concurrency,
-            delay,
-        );
 
         Self {
             active_spiders,
@@ -56,7 +52,7 @@ impl Crawler {
             crawling_queue_capacity,
             processing_queue_capacity,
             processor,
-            scraper,
+            config,
         }
     }
 
@@ -82,12 +78,14 @@ impl Crawler {
 
         self.processor.process_items(spider_arc.clone(), items_rx);
 
-        self.scraper.scrape_urls(
+        let scraper = Scraper::new(
+            self.active_spiders.clone(),
+            self.barrier.clone(),
+            self.config,
             spider_arc.clone(),
-            urls_to_visit_rx,
-            new_urls_tx.clone(),
-            items_tx,
         );
+
+        scraper.scrape_urls(urls_to_visit_rx, new_urls_tx.clone(), items_tx);
 
         loop {
             if let Ok((visited_url, new_urls)) = new_urls_rx.try_recv() {
