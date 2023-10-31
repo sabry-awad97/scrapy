@@ -23,6 +23,7 @@ mod config;
 mod crawler_builder;
 mod processor;
 mod scraper;
+mod url_processor;
 
 pub struct Crawler {
     active_spiders: Arc<AtomicUsize>,
