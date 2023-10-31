@@ -11,7 +11,7 @@ pub struct CrawlerBuilder {
 impl Default for CrawlerBuilder {
     fn default() -> Self {
         Self {
-            delay: Duration::from_secs(1),
+            delay: Duration::from_millis(250),
             crawling_concurrency: 1,
             processing_concurrency: 1,
         }
