@@ -39,11 +39,11 @@ impl Crawler {
         delay: Duration,
         crawling_concurrency: usize,
         processing_concurrency: usize,
+        crawling_queue_capacity: usize,
+        processing_queue_capacity: usize,
     ) -> Self {
         let active_spiders = Arc::new(AtomicUsize::new(0));
         let barrier = Arc::new(Barrier::new(3));
-        let crawling_queue_capacity = crawling_concurrency * 400;
-        let processing_queue_capacity = processing_concurrency * 10;
 
         Self {
             active_spiders,
