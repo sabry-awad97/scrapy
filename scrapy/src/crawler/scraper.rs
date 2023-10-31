@@ -1,13 +1,14 @@
 use std::{
     fmt::Display,
     sync::{atomic::AtomicUsize, Arc},
+    time::Duration,
 };
 
 use tokio::sync::{mpsc, Barrier};
 
 use crate::Spider;
 
-use super::{config::ScraperConfig, url_processor::UrlProcessor};
+use super::url_processor::UrlProcessor;
 
 struct ScraperContext {
     active_spiders: Arc<AtomicUsize>,
@@ -15,7 +16,8 @@ struct ScraperContext {
 }
 
 pub struct Scraper<T, E> {
-    config: ScraperConfig,
+    crawling_concurrency: usize,
+    delay: Duration,
     context: ScraperContext,
     spider: Arc<dyn Spider<Item = T, Error = E>>,
 }
@@ -34,11 +36,13 @@ where
     pub fn new(
         active_spiders: Arc<AtomicUsize>,
         barrier: Arc<Barrier>,
-        config: ScraperConfig,
+        crawling_concurrency: usize,
+        delay: Duration,
         spider: Arc<dyn Spider<Item = T, Error = E>>,
     ) -> Self {
         Self {
-            config,
+            crawling_concurrency,
+            delay,
             context: ScraperContext {
                 active_spiders,
                 barrier,
@@ -53,7 +57,11 @@ where
         new_urls_tx: mpsc::Sender<(String, Vec<String>)>,
         items_tx: mpsc::Sender<T>,
     ) {
-        let url_processor = UrlProcessor::new(self.context.active_spiders.clone(), self.config);
+        let url_processor = UrlProcessor::new(
+            self.context.active_spiders.clone(),
+            self.crawling_concurrency,
+            self.delay,
+        );
 
         let spider_scraper = SpiderScraper {
             spider: self.spider.clone(),

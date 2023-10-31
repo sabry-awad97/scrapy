@@ -4,23 +4,30 @@ use std::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
+    time::Duration,
 };
 
 use futures::StreamExt;
 use tokio::sync::mpsc;
 
-use super::{config::ScraperConfig, scraper::SpiderScraper};
+use super::scraper::SpiderScraper;
 
 pub struct UrlProcessor {
     active_spiders: Arc<AtomicUsize>,
-    config: ScraperConfig,
+    crawling_concurrency: usize,
+    delay: Duration,
 }
 
 impl UrlProcessor {
-    pub fn new(active_spiders: Arc<AtomicUsize>, config: ScraperConfig) -> Self {
+    pub fn new(
+        active_spiders: Arc<AtomicUsize>,
+        crawling_concurrency: usize,
+        delay: Duration,
+    ) -> Self {
         Self {
             active_spiders,
-            config,
+            crawling_concurrency,
+            delay,
         }
     }
 
@@ -33,7 +40,7 @@ impl UrlProcessor {
         E: Display + Send + 'static,
     {
         tokio_stream::wrappers::ReceiverStream::new(urls_to_visit)
-            .for_each_concurrent(self.config.crawling_concurrency(), |queued_url| {
+            .for_each_concurrent(self.crawling_concurrency, |queued_url| {
                 let queued_url = queued_url.clone();
                 let active_spiders = self.active_spiders.clone();
                 let items_tx = spider_scraper.items_tx.clone();
@@ -55,7 +62,7 @@ impl UrlProcessor {
                     }
 
                     let _ = new_urls_tx.send((queued_url, urls)).await;
-                    tokio::time::sleep(self.config.delay()).await;
+                    tokio::time::sleep(self.delay).await;
                     active_spiders.fetch_sub(1, Ordering::SeqCst);
                 }
             })

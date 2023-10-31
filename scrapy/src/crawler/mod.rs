@@ -15,11 +15,10 @@ use tokio::{
 
 use crate::Spider;
 
-use self::{config::ScraperConfig, processor::Processor, scraper::Scraper};
+use self::{processor::Processor, scraper::Scraper};
 
 pub use crawler_builder::CrawlerBuilder;
 
-mod config;
 mod crawler_builder;
 mod processor;
 mod scraper;
@@ -28,10 +27,11 @@ mod url_processor;
 pub struct Crawler {
     active_spiders: Arc<AtomicUsize>,
     barrier: Arc<Barrier>,
-    config: ScraperConfig,
+    crawling_concurrency: usize,
     crawling_queue_capacity: usize,
+    delay: Duration,
+    processing_concurrency: usize,
     processing_queue_capacity: usize,
-    processor: Processor,
 }
 
 impl Crawler {
@@ -42,18 +42,17 @@ impl Crawler {
     ) -> Self {
         let active_spiders = Arc::new(AtomicUsize::new(0));
         let barrier = Arc::new(Barrier::new(3));
-        let config = ScraperConfig::new(crawling_concurrency, delay);
         let crawling_queue_capacity = crawling_concurrency * 400;
         let processing_queue_capacity = processing_concurrency * 10;
-        let processor = Processor::new(processing_concurrency, barrier.clone());
 
         Self {
             active_spiders,
             barrier,
+            crawling_concurrency,
             crawling_queue_capacity,
+            delay,
+            processing_concurrency,
             processing_queue_capacity,
-            processor,
-            config,
         }
     }
 
@@ -77,12 +76,14 @@ impl Crawler {
             let _ = urls_to_visit_tx.send(url).await;
         }
 
-        self.processor.process_items(spider_arc.clone(), items_rx);
+        let processor = Processor::new(self.processing_concurrency, self.barrier.clone());
+        processor.process_items(spider_arc.clone(), items_rx);
 
         let scraper = Scraper::new(
             self.active_spiders.clone(),
             self.barrier.clone(),
-            self.config,
+            self.crawling_concurrency,
+            self.delay,
             spider_arc.clone(),
         );
 
