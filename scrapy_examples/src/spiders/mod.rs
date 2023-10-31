@@ -6,3 +6,6 @@ pub use hacker_news::HackerNewsSpider;
 
 mod quote_spider;
 pub use quote_spider::QuotesSpider;
+
+mod web_reviews;
+pub use web_reviews::WebReviewsSpider;
